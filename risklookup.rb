@@ -2,13 +2,22 @@
 
 require 'rubygems'
 require 'resolv'
-require 'ipaddr'
 require 'ipaddress'
+require 'getopt/std'
+
 # obkvwevadnqw.2.1.9.127.dnsbl.httpbl.org
 # usage: ./risklookup -o xml|csv [ipaddress] 
 
+# <risklist>
+#    <ipaddress ip="123.3.3.3" value=""/>
+# </risklist>
+
+# 123.3.3.3,123.2.2.2
+# 123.3.3.4,nil
+
 API_KEY = "obkvwevadnqw"
 HTTP_BL = "dnsbl.httpbl.org"
+opt = Getopt::Std.getopts("o:")
 
 def usage
   puts "usage: ./risklookup.rb -o xml|csv [ipaddress{/range}]"
@@ -38,4 +47,6 @@ ip.each do |addr|
     res = "No record found"
   end
   puts "#{query} ====> #{res}"
+  #output into xml
+  #output into csv
 end
