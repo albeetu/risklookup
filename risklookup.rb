@@ -6,6 +6,7 @@ require 'ipaddress'
 require 'getopt/std'
 require 'pp'
 require 'orderedhash'
+require 'ruby-debug'
 
 # obkvwevadnqw.2.1.9.127.dnsbl.httpbl.org
 # usage: ./risklookup -o xml|csv [ipaddress] 
@@ -32,7 +33,7 @@ API_KEY = "obkvwevadnqw"
 HTTP_BL = "dnsbl.httpbl.org"
 opt = Getopt::Std.getopts("o:s")
 total_searched = 0
-
+xml = "<risklist>"
 
 def usage
   puts "usage: ./risklookup.rb -o xml|csv [ipaddress{/range}]"
@@ -47,11 +48,13 @@ def convert_risk_type(score)
   risk_type["Suspicious"] = 1
   risk_type["Harvester"] = 2
   risk_type["Comment Spammer"] = 4
-               
-   #pp risk_type
+   if (score == 0) 
+      return "Engine"
+   end            
+   #pp risk_type 
    risk_type.each { |type,mask|
     # puts "#{score & mask} :: #{score} #{mask}"
-     if (score & mask) == 1 
+     if (score & mask) == mask 
       risk_descr = risk_descr + type + " "
      end
     }
@@ -87,11 +90,14 @@ ip.each do |addr|
     # May not need anything here
   end
   # puts "IP :: #{addr} ====> Risk: res"
-  puts "IP :: #{addr} ====> Score: #{days_last} :: #{threat_level} :: #{threat_type}" if !opt["s"] or !res.eql? "No risk score for this IP"
+  puts "IP :: #{addr} ====> Score: #{days_last} :: #{threat_level} :: #{threat_type} (#{type})" if !res.eql? "No risk score for this IP"
   total_searched = total_searched + 1
   #output into xml
+  puts "<ipaddress ip=\"#{addr}\" risk=\"#{res}\"/>" 
   #output into csv
 end
 
+# close xml
+# close csv
 puts "Completed lookup -> #{total_searched} records queried" if !opt["s"]
 exit(0)
