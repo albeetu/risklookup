@@ -4,20 +4,35 @@ require 'rubygems'
 require 'resolv'
 require 'ipaddress'
 require 'getopt/std'
+require 'pp'
+require 'orderedhash'
 
 # obkvwevadnqw.2.1.9.127.dnsbl.httpbl.org
 # usage: ./risklookup -o xml|csv [ipaddress] 
 
 # <risklist>
 #    <ipaddress ip="123.3.3.3" value=""/>
+#    <ipaddress ip="125.5.5.2" value="127.2.45.2"/>
 # </risklist>
 
 # 123.3.3.3,123.2.2.2
 # 123.3.3.4,nil
 
+
+# Result
+# Example: 127.3.5.1
+# 1st octet - ignore
+# 2nd octet - Days last time activty was recorded
+# 3rd octet - threat score
+# 4th octet - type of threat
+
+#Threat types
+
 API_KEY = "obkvwevadnqw"
 HTTP_BL = "dnsbl.httpbl.org"
-opt = Getopt::Std.getopts("o:")
+opt = Getopt::Std.getopts("o:s")
+total_searched = 0
+
 
 def usage
   puts "usage: ./risklookup.rb -o xml|csv [ipaddress{/range}]"
@@ -25,13 +40,31 @@ def usage
   puts " 	  ./risklookup 205.22.3.0/24"
 end
 
-if ARGV[0] == nil
+def convert_risk_type(score)
+  risk_type = OrderedHash.new
+  risk_descr = String.new
+  risk_type["Engine"] = 0
+  risk_type["Suspicious"] = 1
+  risk_type["Harvester"] = 2
+  risk_type["Comment Spammer"] = 4
+               
+   #pp risk_type
+   risk_type.each { |type,mask|
+    # puts "#{score & mask} :: #{score} #{mask}"
+     if (score & mask) == 1 
+      risk_descr = risk_descr + type + " "
+     end
+    }
+  return risk_descr
+end
+
+if ARGV.last == nil
   usage
 exit
 end
 
 begin
-  ip = IPAddress ARGV[0]
+  ip = IPAddress ARGV.last
 rescue
   puts "#{ARGV[0]} is an invalid address"
   ip = nil
@@ -43,10 +76,22 @@ ip.each do |addr|
   # obkvwevadnqw.2.1.9.127.dnsbl.httpbl.org
   begin
     res = Resolv.getaddress(query)
+    risk_score = IPAddress res
+    days_last = risk_score[1]
+    threat_level = risk_score[2]
+    type = Integer(risk_score[3])
+    threat_type = convert_risk_type(type)
   rescue
-    res = "No record found"
+    res = "No risk score for this IP"
+  ensure
+    # May not need anything here
   end
-  puts "#{query} ====> #{res}"
+  # puts "IP :: #{addr} ====> Risk: res"
+  puts "IP :: #{addr} ====> Score: #{days_last} :: #{threat_level} :: #{threat_type}" if !opt["s"] or !res.eql? "No risk score for this IP"
+  total_searched = total_searched + 1
   #output into xml
   #output into csv
 end
+
+puts "Completed lookup -> #{total_searched} records queried" if !opt["s"]
+exit(0)
