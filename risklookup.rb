@@ -35,11 +35,36 @@ opt = Getopt::Std.getopts("o:s")
 total_searched = 0
 xml = "<risklist>"
 
+#options
+# -o xml|csv
+#    open file, write, close
+# -f filename
+# -h help
+#    usage display
+# -i input file
+
 def usage
-  puts "usage: ./risklookup.rb -o xml|csv [ipaddress{/range}]"
+  puts "usage: ./risklookup.rb -o [xml|csv] -f [output file] -i [input file] -h [ipaddress|network/mask]"
   puts "examples: ./risklookup 10.2.3.4"
   puts " 	  ./risklookup 205.22.3.0/24"
 end
+
+def input_file(filename)
+  linecount = 0
+  File.open(filename,"r") do |infile|
+    while (line = infile.gets)
+      begin
+        ip = IPAddress line
+        linecount = linecount + 1
+      rescue
+        puts "Parse error on line #{linecount} in #{filename}."
+        file.close
+        exit
+      end
+  file.close
+  return address_list
+end
+
 
 def convert_risk_type(score)
   risk_type = OrderedHash.new
@@ -54,13 +79,20 @@ def convert_risk_type(score)
    #pp risk_type 
    risk_type.each { |type,mask|
     # puts "#{score & mask} :: #{score} #{mask}"
-     if (score & mask) == mask 
+     if ((mask != 0) and (score & mask) == mask)
       risk_descr = risk_descr + type + " "
      end
     }
   return risk_descr
 end
 
+if opt["f"]
+  
+  ip = input_file(
+
+#if -f flag is on
+# ip = input_file(filename)
+#else
 if ARGV.last == nil
   usage
 exit
@@ -90,7 +122,7 @@ ip.each do |addr|
     # May not need anything here
   end
   # puts "IP :: #{addr} ====> Risk: res"
-  puts "IP :: #{addr} ====> Score: #{days_last} :: #{threat_level} :: #{threat_type} (#{type})" if !res.eql? "No risk score for this IP"
+  puts "IP :: #{addr} ====> Risk: #{res} :::: Score: #{days_last} :: #{threat_level} :: #{threat_type} (#{type})" if !res.eql? "No risk score for this IP"
   total_searched = total_searched + 1
   #output into xml
   puts "  <ipaddress ip=\"#{addr}\" risk=\"#{res}\"/>" 
