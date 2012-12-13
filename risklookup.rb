@@ -93,8 +93,9 @@ ip.each do |addr|
   puts "IP :: #{addr} ====> Score: #{days_last} :: #{threat_level} :: #{threat_type} (#{type})" if !res.eql? "No risk score for this IP"
   total_searched = total_searched + 1
   #output into xml
-  puts "<ipaddress ip=\"#{addr}\" risk=\"#{res}\"/>" 
+  puts "  <ipaddress ip=\"#{addr}\" risk=\"#{res}\"/>" 
   #output into csv
+  puts "#{addr},#{days_last},#{threat_level},#{type}"
 end
 
 # close xml
