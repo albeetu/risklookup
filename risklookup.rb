@@ -8,6 +8,8 @@ require 'pp'
 require 'orderedhash'
 require 'ruby-debug'
 
+API_KEY = "obkvwevadnqw"
+HTTP_BL = "dnsbl.httpbl.org"
 # obkvwevadnqw.2.1.9.127.dnsbl.httpbl.org
 # usage: ./risklookup -o xml|csv [ipaddress] 
 
@@ -29,12 +31,6 @@ require 'ruby-debug'
 
 #Threat types
 
-API_KEY = "obkvwevadnqw"
-HTTP_BL = "dnsbl.httpbl.org"
-opt = Getopt::Std.getopts("o:s")
-total_searched = 0
-xml = "<risklist>"
-
 #options
 # -o xml|csv
 #    open file, write, close
@@ -50,21 +46,21 @@ def usage
 end
 
 def input_file(filename)
+  ip = Array.new
   linecount = 0
+  puts "Opening filename: #{filename}"
   File.open(filename,"r") do |infile|
     while (line = infile.gets)
       begin
-        ip = IPAddress line
+        ip.push(line)
         linecount = linecount + 1
       rescue
         puts "Parse error on line #{linecount} in #{filename}."
-        file.close
         exit
       end
     end
   end
-  file.close
-  return address_list
+  return ip
 end
 
 def convert_risk_type(score)
@@ -86,51 +82,64 @@ def convert_risk_type(score)
     }
   return risk_descr
 end
-if opt["f"] then
-  ip_list = input_file(filename)
-elsif
-  if ARGV.last == nil
-    usage
-    exit
-  elsif
-    ip_list = ARGV.last
+
+
+def lookup(ip)
+  total_searched = 0
+  ip.each do |addr|
+    query = "#{API_KEY}.#{addr.reverse.to_s.split(".in-addr.arpa").first}.#{HTTP_BL}"
+    # obkvwevadnqw.2.1.9.127.dnsbl.httpbl.org
+      begin
+        res = Resolv.getaddress(query)
+        risk_score = IPAddress res
+        days_last = risk_score[1]
+        threat_level = risk_score[2]
+        type = Integer(risk_score[3])
+        threat_type = convert_risk_type(type)
+      rescue
+        res = "No risk score for this IP"
+      ensure
+        # May not need anything here
+      end
+    # puts "IP :: #{addr} ====> Risk: res"
+    puts "IP :: #{addr} ====> Risk: #{res} :::: Score: #{days_last} :: #{threat_level} :: #{threat_type} (#{type})" unless res.eql? "No risk score for this IP"
+    total_searched = total_searched + 1
+    #output into xml
+    puts "  <ipaddress ip=\"#{addr}\" risk=\"#{res}\"/>" 
+    #output into csv
+    puts "#{addr},#{days_last},#{threat_level},#{type}"
   end
 end
 
+def main()
 
-begin
-  ip = IPAddress ip_list
-rescue
-  puts "#{ip_list} is an invalid address"
+  opt = Getopt::Std.getopts("o:sf:")
+  total_searched = 0
+  xml = "<risklist>"
   ip = nil
-  exit
-end
-
-ip.each do |addr|
-  query = "#{API_KEY}.#{addr.reverse.to_s.split(".in-addr.arpa").first}.#{HTTP_BL}"
-  # obkvwevadnqw.2.1.9.127.dnsbl.httpbl.org
-  begin
-    res = Resolv.getaddress(query)
-    risk_score = IPAddress res
-    days_last = risk_score[1]
-    threat_level = risk_score[2]
-    type = Integer(risk_score[3])
-    threat_type = convert_risk_type(type)
-  rescue
-    res = "No risk score for this IP"
-  ensure
-    # May not need anything here
+   
+  if opt["f"]
+    filename="list.txt"
+    list = input_file(filename)
+  elsif
+    if ARGV.last == nil
+      usage
+      exit
+    elsif
+      list = ARGV.last
+    end
   end
-  # puts "IP :: #{addr} ====> Risk: res"
-  puts "IP :: #{addr} ====> Risk: #{res} :::: Score: #{days_last} :: #{threat_level} :: #{threat_type} (#{type})" if !res.eql? "No risk score for this IP"
-  total_searched = total_searched + 1
-  #output into xml
-  puts "  <ipaddress ip=\"#{addr}\" risk=\"#{res}\"/>" 
-  #output into csv
-  puts "#{addr},#{days_last},#{threat_level},#{type}"
-end
 
+list.each do |ip|
+    ipaddr = IPAddress ip
+    lookup(ipaddr)
+    #output(ipaddr,opt)
+  end
+end
 # close xml
+
 # close csv
-puts "Completed lookup -> #{total_searched} records queried" if !opt["s"]
-exit(0)
+#  puts "Completed lookup -> #{total_searched} records queried" unless !opt["s"]
+
+main()
+exit
