@@ -61,10 +61,11 @@ def input_file(filename)
         file.close
         exit
       end
+    end
+  end
   file.close
   return address_list
 end
-
 
 def convert_risk_type(score)
   risk_type = OrderedHash.new
@@ -85,23 +86,22 @@ def convert_risk_type(score)
     }
   return risk_descr
 end
-
-if opt["f"]
-  
-  ip = input_file(
-
-#if -f flag is on
-# ip = input_file(filename)
-#else
-if ARGV.last == nil
-  usage
-exit
+if opt["f"] then
+  ip_list = input_file(filename)
+elsif
+  if ARGV.last == nil
+    usage
+    exit
+  elsif
+    ip_list = ARGV.last
+  end
 end
 
+
 begin
-  ip = IPAddress ARGV.last
+  ip = IPAddress ip_list
 rescue
-  puts "#{ARGV[0]} is an invalid address"
+  puts "#{ip_list} is an invalid address"
   ip = nil
   exit
 end
