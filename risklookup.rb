@@ -73,7 +73,6 @@ def convert_risk_type(score)
    if (score == 0) 
       return "Engine"
    end            
-   #pp risk_type 
    risk_type.each { |type,mask|
     # puts "#{score & mask} :: #{score} #{mask}"
      if ((mask != 0) and (score & mask) == mask)
@@ -85,30 +84,34 @@ end
 
 
 def lookup(ip)
-  total_searched = 0
+  results = Array.new
+
   ip.each do |addr|
     query = "#{API_KEY}.#{addr.reverse.to_s.split(".in-addr.arpa").first}.#{HTTP_BL}"
     # obkvwevadnqw.2.1.9.127.dnsbl.httpbl.org
       begin
         res = Resolv.getaddress(query)
         risk_score = IPAddress res
-        days_last = risk_score[1]
-        threat_level = risk_score[2]
-        type = Integer(risk_score[3])
-        threat_type = convert_risk_type(type)
+        result = {"ip" => addr,
+                  "days_last" => risk_score[1],
+                  "threat_level" => risk_score[2],
+                  "type" => risk_score[3],
+                  "threat_type" => convert_risk_type(Integer(risk_score[3]))
+        }
+        results = (results << result).flatten
       rescue
         res = "No risk score for this IP"
       ensure
         # May not need anything here
       end
-    # puts "IP :: #{addr} ====> Risk: res"
-    puts "IP :: #{addr} ====> Risk: #{res} :::: Score: #{days_last} :: #{threat_level} :: #{threat_type} (#{type})" unless res.eql? "No risk score for this IP"
-    total_searched = total_searched + 1
+    #puts "IP :: #{addr} ====> Risk: res"
+    puts "IP :: #{result["addr"]} ====> Risk: #{res} :::: Score: #{result["days_last"]} :: #{result["threat_level"]} :: #{result["threat_type"]} (#{result["type"]})" unless res.eql? "No risk score for this IP"
     #output into xml
-    puts "  <ipaddress ip=\"#{addr}\" risk=\"#{res}\"/>" 
+    #puts "  <ipaddress ip=\"#{addr}\" risk=\"#{res}\"/>" 
     #output into csv
-    puts "#{addr},#{days_last},#{threat_level},#{type}"
+    #puts "#{addr},#{days_last},#{threat_level},#{type}"
   end
+  return results
 end
 
 def main()
@@ -116,10 +119,10 @@ def main()
   opt = Getopt::Std.getopts("o:sf:")
   total_searched = 0
   xml = "<risklist>"
+  results = Array.new
   ip = nil
-   
   if opt["f"]
-    filename="list.txt"
+    filename=opt["f"]
     list = input_file(filename)
   elsif
     if ARGV.last == nil
@@ -132,9 +135,10 @@ def main()
 
 list.each do |ip|
     ipaddr = IPAddress ip
-    lookup(ipaddr)
-    #output(ipaddr,opt)
+    results = (results << lookup(ipaddr)).flatten
   end
+  #pp results
+  puts "#{results.count} records with valid results"
 end
 # close xml
 
