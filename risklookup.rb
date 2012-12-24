@@ -8,7 +8,6 @@ require 'pp'
 require 'orderedhash'
 require 'ruby-debug'
 
-API_KEY = "obkvwevadnqw"
 HTTP_BL = "dnsbl.httpbl.org"
 # obkvwevadnqw.2.1.9.127.dnsbl.httpbl.org
 # usage: ./risklookup -o xml|csv [ipaddress] 
@@ -38,9 +37,20 @@ HTTP_BL = "dnsbl.httpbl.org"
 # -h help
 #    usage display
 # -i input file
+# -A API key for Project Honeypot
+
+def setAPI(opt)
+  if opt["A"]
+    api_key = opt["A"]
+  else
+    api_key = "obkvwevadnqw"
+  end
+  return api_key
+end
+
 
 def usage
-  puts "usage: ./risklookup.rb -o [xml|csv] -f [output file] -i [input file] -h [ipaddress|network/mask]"
+  puts "usage: ./risklookup.rb -A [apikey] -o [xml|csv] -f [output file] -i [input file] -h [ipaddress|network/mask]"
   puts "examples: ./risklookup 10.2.3.4"
   puts " 	  ./risklookup 205.22.3.0/24"
 end
@@ -83,16 +93,18 @@ def convert_risk_type(score)
 end
 
 
-def lookup(ip)
+def lookup(ip,api_key)
   results = Array.new
-
+  count = 0
   ip.each do |addr|
-    query = "#{API_KEY}.#{addr.reverse.to_s.split(".in-addr.arpa").first}.#{HTTP_BL}"
+    query = "#{api_key}.#{addr.reverse.to_s.split(".in-addr.arpa").first}.#{HTTP_BL}"
     # obkvwevadnqw.2.1.9.127.dnsbl.httpbl.org
       begin
+        puts query
         res = Resolv.getaddress(query)
         risk_score = IPAddress res
         result = {"ip" => addr,
+                  "value" => res,
                   "days_last" => risk_score[1],
                   "threat_level" => risk_score[2],
                   "type" => risk_score[3],
@@ -100,27 +112,46 @@ def lookup(ip)
         }
         results = (results << result).flatten
       rescue
-        res = "No risk score for this IP"
+        res = "No risk score for this IP or invalid api key"
       ensure
-        # May not need anything here
+        count = count + 1
       end
+
     #puts "IP :: #{addr} ====> Risk: res"
-    puts "IP :: #{result["addr"]} ====> Risk: #{res} :::: Score: #{result["days_last"]} :: #{result["threat_level"]} :: #{result["threat_type"]} (#{result["type"]})" unless res.eql? "No risk score for this IP"
+    puts "IP :: #{result["ip"]} ====> Risk: #{res} :::: Score: #{result["days_last"]} :: #{result["threat_level"]} :: #{result["threat_type"]} (#{result["type"]})" unless res.eql? "No risk score for this IP or invalid api key"
     #output into xml
-    #puts "  <ipaddress ip=\"#{addr}\" risk=\"#{res}\"/>" 
     #output into csv
-    #puts "#{addr},#{days_last},#{threat_level},#{type}"
+    puts "#{count} records queried"
   end
   return results
 end
 
+def output(results,opt)
+  if (opt["o"] == "xml")
+      xml = "<riskreading>"
+      results.each do |result|
+        xml = xml + "<ipaddress ip=\"#{result["ip"]}\" value=\"#{result["value"]}\">" 
+    end
+    xml = xml + "</riskreading>"
+    pp xml
+  end
+#puts "  <ipaddress ip=\"#{addr}\" risk=\"#{res}\"/>" 
+  if opt["o"] == "csv"
+    results.each do |result|
+    end
+  end
+#puts "#{addr},#{days_last},#{threat_level},#{type}"
+end
+
 def main()
 
-  opt = Getopt::Std.getopts("o:sf:")
+  opt = Getopt::Std.getopts("o:sf:A:")
   total_searched = 0
   xml = "<risklist>"
   results = Array.new
+  api_key = setAPI(opt)
   ip = nil
+
   if opt["f"]
     filename=opt["f"]
     list = input_file(filename)
@@ -133,11 +164,11 @@ def main()
     end
   end
 
-list.each do |ip|
+  list.each do |ip|
     ipaddr = IPAddress ip
-    results = (results << lookup(ipaddr)).flatten
+    results = (results << lookup(ipaddr,api_key)).flatten
   end
-  #pp results
+  output(results,opt)
   puts "#{results.count} records with valid results"
 end
 # close xml
