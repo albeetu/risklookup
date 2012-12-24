@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Test individual IPs
+
+echo '==============> Test individual'
+
+./risklookup.rb 127.0.0.0
+./risklookup.rb 127.0.0.1
+./risklookup.rb 127.0.0.2
+./risklookup.rb 127.0.0.3
+./risklookup.rb 127.0.0.4
+./risklookup.rb 127.0.0.5
+./risklookup.rb 127.0.0.6
+./risklookup.rb 127.0.0.7
+./risklookup.rb 127.0.0.8
+./risklookup.rb 127.0.0.9
+./risklookup.rb 127.0.0.10
+
+#Test a range
+
+echo '===============> Test a range'
+
+./risklookup.rb 127.0.0.0/28
+
+#Test working range that will give results
+
+echo '===============> Test a range with results'
+
+./risklookup.rb 127.1.1.0/28
+
+#Test of a file containing non 127 ips
+
+echo '==============> Test file with valid list'
+
+./risklookup.rb -f list.txt
+
+echo '==============> Test with invalid file'
+
+./risklookup.rb -f 
+./risklookup.rb -f test.txt
+
+echo '==============> Test range'
+
+./risklookup.rb 203.34.23.0/28
+
+./risklookup.rb 125.5.5.2
+
+echo '=============> test xml output'
+
+./risklookup.rb -o xml 127.1.1.0/28
+./risklookup.rb -o xml -f list.txt
